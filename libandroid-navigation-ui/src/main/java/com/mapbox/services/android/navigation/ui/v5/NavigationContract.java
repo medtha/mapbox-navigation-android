@@ -34,5 +34,9 @@ public interface NavigationContract {
     void resumeCamera(Location location);
 
     void updateLocationLayer(Location location);
+
+    void updateWaynameVisibility(boolean isVisible);
+
+    void updateWaynameLayer(String wayname);
   }
 }

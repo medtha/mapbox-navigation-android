@@ -238,6 +238,13 @@ public final class NavigationConstants {
    */
   static final int TWO_HUNDRED_METERS_PER_SECOND_VELOCITY_THRESHOLD = 200;
 
+  public static final Float[] WAYNAME_OFFSET = {0.0f, 40.0f};
+  public static final String MAPBOX_LOCATION_SOURCE = "mapbox-location-source";
+  public static final String MAPBOX_WAYNAME_LAYER = "mapbox-wayname-layer";
+  public static final String MAPBOX_WAYNAME_ICON = "mapbox-wayname-icon";
+  public static final int PADDING_MULTIPLIER = 4;
+  public static final int TWELVE_DP = 12;
+
   // Bundle variable keys
   public static final String NAVIGATION_VIEW_ORIGIN_LAT_KEY = "origin_lat";
   public static final String NAVIGATION_VIEW_ORIGIN_LNG_KEY = "origin_long";
