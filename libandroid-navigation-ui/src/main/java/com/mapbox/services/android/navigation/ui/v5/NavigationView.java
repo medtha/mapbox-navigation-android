@@ -22,19 +22,12 @@ import android.widget.ImageView;
 
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.geojson.Point;
-import com.mapbox.mapboxsdk.annotations.Icon;
-import com.mapbox.mapboxsdk.annotations.Marker;
-import com.mapbox.mapboxsdk.annotations.MarkerOptions;
-import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
-import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin;
-import com.mapbox.mapboxsdk.plugins.locationlayer.modes.RenderMode;
-import com.mapbox.services.android.navigation.ui.v5.camera.NavigationCamera;
 import com.mapbox.services.android.navigation.ui.v5.instruction.InstructionLoader;
 import com.mapbox.services.android.navigation.ui.v5.instruction.InstructionView;
-import com.mapbox.services.android.navigation.ui.v5.route.NavigationMapRoute;
+import com.mapbox.services.android.navigation.ui.v5.map.NavigationMapboxMap;
 import com.mapbox.services.android.navigation.ui.v5.summary.SummaryBottomSheet;
 import com.mapbox.services.android.navigation.ui.v5.utils.ViewUtils;
 import com.mapbox.services.android.navigation.v5.location.MockLocationEngine;
@@ -44,7 +37,6 @@ import com.mapbox.services.android.navigation.v5.navigation.NavigationTimeFormat
 import com.mapbox.services.android.navigation.v5.navigation.NavigationUnitType;
 import com.mapbox.services.android.navigation.v5.utils.LocaleUtils;
 
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -83,11 +75,8 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
   private NavigationViewEventDispatcher navigationViewEventDispatcher;
   private NavigationViewModel navigationViewModel;
   private MapboxMap map;
-  private NavigationMapRoute mapRoute;
-  private NavigationCamera camera;
-  private LocationLayerPlugin locationLayer;
+  private NavigationMapboxMap navigationMap;
   private OnNavigationReadyCallback onNavigationReadyCallback;
-  private boolean resumeState;
   private boolean isInitialized;
 
   public NavigationView(Context context) {
@@ -111,8 +100,9 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    * @param savedInstanceState to restore state if not null
    */
   public void onCreate(@Nullable Bundle savedInstanceState) {
-    resumeState = savedInstanceState != null;
+    boolean resumeState = savedInstanceState != null;
     mapView.onCreate(savedInstanceState);
+    navigationPresenter.updateResumeState(resumeState);
     navigationViewModel.onCreate(resumeState);
   }
 
@@ -131,11 +121,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    * @return true if back press handled, false if not
    */
   public boolean onBackPressed() {
-    if (instructionView.isShowingInstructionList()) {
-      instructionView.hideInstructionList();
-      return true;
-    }
-    return false;
+    return instructionView.handleBackPressed();
   }
 
   /**
@@ -180,9 +166,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     mapView.onDestroy();
     navigationViewModel.onDestroy(isChangingConfigurations());
     InstructionLoader.getInstance().shutdown();
-    if (camera != null) {
-      camera.onDestroy();
-    }
+    navigationMap.onDestroy();
   }
 
   public void onStart() {
@@ -216,13 +200,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     ThemeSwitcher.setMapStyle(getContext(), map, new MapboxMap.OnStyleLoadedListener() {
       @Override
       public void onStyleLoaded(String style) {
-        initRoute();
-        initLocationLayer();
-        initMapPadding();
-        initLocationLayerObserver();
-        initNavigationPresenter();
         initClickListeners();
-        map.addOnScrollListener(NavigationView.this);
         onNavigationReadyCallback.onNavigationReady();
       }
     });
@@ -238,9 +216,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    */
   @Override
   public void onScroll() {
-    if (summaryBehavior.getState() != BottomSheetBehavior.STATE_HIDDEN) {
-      navigationPresenter.onMapScroll();
-    }
+    navigationPresenter.onMapScroll();
   }
 
   @Override
@@ -254,22 +230,23 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
   }
 
   @Override
-  public void setCameraTrackingEnabled(boolean isEnabled) {
-    if (camera != null) {
-      camera.setCameraTrackingLocation(isEnabled);
-    }
+  public boolean isSummaryBottomsheetHidden() {
+    return summaryBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN;
+  }
+
+  @Override
+  public void updateCameraTrackingEnabled(boolean isEnabled) {
+    navigationMap.updateCameraTrackingEnabled(isEnabled);
   }
 
   @Override
   public void resetCameraPosition() {
-    camera.resetCameraPosition();
+    navigationMap.resetCameraPosition();
   }
 
   @Override
   public void showRecenterBtn() {
-    if (summaryBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN) {
-      recenterBtn.show();
-    }
+    recenterBtn.show();
   }
 
   @Override
@@ -278,24 +255,18 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
   }
 
   @Override
-  public void drawRoute(DirectionsRoute directionsRoute) {
-    mapRoute.addRoute(directionsRoute);
+  public boolean isRecenterBtnVisible() {
+    return recenterBtn.getVisibility() == View.VISIBLE;
   }
 
-  /**
-   * Creates a marker based on the
-   * {@link Point} destination coordinate.
-   *
-   * @param position where the marker should be placed
-   */
+  @Override
+  public void drawRoute(DirectionsRoute directionsRoute) {
+    navigationMap.drawRoute(directionsRoute);
+  }
+
   @Override
   public void addMarker(Point position) {
-    LatLng markerPosition = new LatLng(position.latitude(),
-      position.longitude());
-    Icon marker = ThemeSwitcher.retrieveMapMarker(getContext());
-    map.addMarker(new MarkerOptions()
-      .position(markerPosition)
-      .icon(marker));
+    navigationMap.addMarker(getContext(), position);
   }
 
   /**
@@ -312,18 +283,15 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     map.snapshot(new MapboxMap.SnapshotReadyCallback() {
       @Override
       public void onSnapshotReady(Bitmap snapshot) {
-        // Make the image visible
         ImageView screenshotView = findViewById(R.id.screenshotView);
         screenshotView.setVisibility(View.VISIBLE);
         screenshotView.setImageBitmap(snapshot);
 
-        // Take a screenshot without the map
         mapView.setVisibility(View.INVISIBLE);
         Bitmap capture = ViewUtils.captureView(mapView);
         String encoded = ViewUtils.encodeView(capture);
         navigationViewModel.updateFeedbackScreenshot(encoded);
 
-        // Restore visibility
         screenshotView.setVisibility(View.INVISIBLE);
         mapView.setVisibility(View.VISIBLE);
       }
@@ -340,9 +308,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    */
   @Override
   public void startCamera(DirectionsRoute directionsRoute) {
-    if (!resumeState) {
-      camera.start(directionsRoute);
-    }
+    navigationMap.startCamera(directionsRoute);
   }
 
   /**
@@ -353,15 +319,13 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    */
   @Override
   public void resumeCamera(Location location) {
-    if (resumeState && recenterBtn.getVisibility() != View.VISIBLE) {
-      camera.resume(location);
-      resumeState = false;
-    }
+    navigationMap.resumeCamera(location);
   }
 
   @Override
-  public void updateLocationLayer(Location location) {
-    locationLayer.forceLocationUpdate(location);
+  public void updateNavigationMap(Location location) {
+    // TODO rename and update navigation map
+    navigationMap.updateLocation(location);
   }
 
   /**
@@ -373,12 +337,16 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     if (!isInitialized) {
       establish(options);
       navigationViewModel.initializeNavigation(options, navigationViewEventDispatcher);
-      initNavigationListeners(options, navigationViewModel.getNavigation());
-      initNavigationCamera();
+      MapboxNavigation navigation = navigationViewModel.getNavigation();
+      initNavigationListeners(options, navigation);
+      navigationMap = new NavigationMapboxMap(mapView, map, navigation);
+      initMapPadding();
+      initLocationLayerObserver();
+      map.addOnScrollListener(NavigationView.this);
       subscribeViewModels();
       isInitialized = true;
     } else {
-      clearMarkers();
+      navigationMap.clearMarkers();
       navigationViewModel.updateNavigation(options);
     }
   }
@@ -402,7 +370,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    *
    * @return mapbox map object, or null if view has not been initialized
    */
-  public MapboxMap getMapboxMap() {
+  public MapboxMap retrieveMapboxMap() {
     return map;
   }
 
@@ -413,6 +381,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     initViewModels();
     initSummaryBottomSheet();
     initNavigationEventDispatcher();
+    initNavigationPresenter();
   }
 
   private void bind() {
@@ -438,10 +407,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
       @Override
       public void onStateChanged(@NonNull View bottomSheet, int newState) {
         navigationViewEventDispatcher.onBottomSheetStateChanged(bottomSheet, newState);
-
-        if (newState == BottomSheetBehavior.STATE_HIDDEN && navigationPresenter != null) {
-          navigationPresenter.onSummaryBottomSheetHidden();
-        }
+        navigationPresenter.onSummaryBottomSheetHidden();
       }
 
       @Override
@@ -485,30 +451,9 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     map.setPadding(0, topPadding, 0, 0);
   }
 
-  /**
-   * Initializes the {@link NavigationMapRoute} to be used to draw the
-   * route.
-   */
-  private void initRoute() {
-    int routeStyleRes = ThemeSwitcher.retrieveNavigationViewStyle(getContext(), R.attr.navigationViewRouteStyle);
-    mapRoute = new NavigationMapRoute(null, mapView, map, routeStyleRes);
-  }
-
-  /**
-   * Initializes the {@link LocationLayerPlugin} to be used to draw the current
-   * location.
-   */
-  @SuppressWarnings( {"MissingPermission"})
-  private void initLocationLayer() {
-    int locationLayerStyleRes = ThemeSwitcher.retrieveNavigationViewStyle(getContext(),
-      R.attr.navigationViewLocationLayerStyle);
-    locationLayer = new LocationLayerPlugin(mapView, map, null, locationLayerStyleRes);
-    locationLayer.setRenderMode(RenderMode.GPS);
-  }
-
   private void initLocationLayerObserver() {
     try {
-      ((LifecycleOwner) getContext()).getLifecycle().addObserver(locationLayer);
+      ((LifecycleOwner) getContext()).getLifecycle().addObserver(navigationMap.retrieveLocationLayer());
     } catch (ClassCastException exception) {
       throw new ClassCastException("Please ensure that the provided Context is a valid LifecycleOwner");
     }
@@ -532,13 +477,6 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
         navigationPresenter.onRecenterClick();
       }
     });
-  }
-
-  private void clearMarkers() {
-    List<Marker> mapMarkers = map.getMarkers();
-    for (Marker marker : mapMarkers) {
-      map.removeMarker(marker);
-    }
   }
 
   private void establish(NavigationViewOptions options) {
@@ -568,10 +506,6 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
 
   private void initNavigationListeners(NavigationViewOptions options, MapboxNavigation navigation) {
     navigationViewEventDispatcher.initializeListeners(options, navigation);
-  }
-
-  private void initNavigationCamera() {
-    camera = new NavigationCamera(map, navigationViewModel.getNavigation());
   }
 
   /**

@@ -2,19 +2,21 @@ package com.mapbox.services.android.navigation.ui.v5;
 
 import android.location.Location;
 import android.support.design.widget.BottomSheetBehavior;
-import android.text.TextUtils;
 
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.geojson.Point;
-import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 
 class NavigationPresenter {
 
   private NavigationContract.View view;
-  private String wayname = "";
+  private boolean resumeState;
 
   NavigationPresenter(NavigationContract.View view) {
     this.view = view;
+  }
+
+  void updateResumeState(boolean resumeState) {
+    this.resumeState = resumeState;
   }
 
   void onRecenterClick() {
@@ -29,30 +31,23 @@ class NavigationPresenter {
   }
 
   void onMapScroll() {
-    view.setSummaryBehaviorHideable(true);
-    view.setSummaryBehaviorState(BottomSheetBehavior.STATE_HIDDEN);
-    view.setCameraTrackingEnabled(false);
+    if (!view.isSummaryBottomsheetHidden()) {
+      view.setSummaryBehaviorHideable(true);
+      view.setSummaryBehaviorState(BottomSheetBehavior.STATE_HIDDEN);
+      view.updateCameraTrackingEnabled(false);
+    }
   }
 
   void onSummaryBottomSheetHidden() {
-    view.showRecenterBtn();
+    if (view.isSummaryBottomsheetHidden()) {
+      view.showRecenterBtn();
+    }
   }
 
   void onRouteUpdate(DirectionsRoute directionsRoute) {
     view.drawRoute(directionsRoute);
-    view.startCamera(directionsRoute);
-  }
-
-  void onProgressUpdate(RouteProgress routeProgress) {
-    String wayname = routeProgress.currentLegProgress().currentStep().name();
-    boolean validWayname = !TextUtils.isEmpty(wayname);
-    boolean newWaynameString = !this.wayname.contentEquals(wayname);
-    if (validWayname && newWaynameString) {
-      view.updateWaynameVisibility(true);
-      view.updateWaynameLayer(wayname);
-      this.wayname = wayname;
-    } else if (!validWayname) {
-      view.updateWaynameVisibility(false);
+    if (!resumeState) {
+      view.startCamera(directionsRoute);
     }
   }
 
@@ -65,7 +60,10 @@ class NavigationPresenter {
   }
 
   void onNavigationLocationUpdate(Location location) {
-    view.resumeCamera(location);
-    view.updateLocationLayer(location);
+    if (resumeState && !view.isRecenterBtnVisible()) {
+      view.resumeCamera(location);
+      resumeState = false;
+    }
+    view.updateNavigationMap(location);
   }
 }

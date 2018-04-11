@@ -11,6 +11,9 @@ import android.view.View;
 
 import java.io.ByteArrayOutputStream;
 
+import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.PADDING_MULTIPLIER;
+import static com.mapbox.services.android.navigation.v5.navigation.NavigationConstants.TWELVE_DP;
+
 public class ViewUtils {
 
   public static Bitmap captureView(View view) {
@@ -36,16 +39,25 @@ public class ViewUtils {
     return Base64.encodeToString(data, Base64.DEFAULT);
   }
 
-  public static Bitmap loadBitmapFromView(View v) {
-    if (v.getMeasuredHeight() <= 0) {
-      v.measure(CoordinatorLayout.LayoutParams.WRAP_CONTENT, CoordinatorLayout.LayoutParams.WRAP_CONTENT);
-      Bitmap b = Bitmap.createBitmap(v.getMeasuredWidth(), v.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
-      Canvas c = new Canvas(b);
-      v.layout(v.getLeft(), v.getTop(), v.getRight(), v.getBottom());
-      v.draw(c);
-      return b;
+  public static Bitmap loadBitmapFromView(View view) {
+    if (view.getMeasuredHeight() <= 0) {
+      view.measure(CoordinatorLayout.LayoutParams.WRAP_CONTENT, CoordinatorLayout.LayoutParams.WRAP_CONTENT);
+      Bitmap bitmap = Bitmap.createBitmap(view.getMeasuredWidth(), view.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+      Canvas canvas = new Canvas(bitmap);
+      view.layout(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+      view.draw(canvas);
+      return bitmap;
     }
     return null;
+  }
+
+  public static int buildDynamicMapPadding(Context context, int mapViewHeight,
+                                           int bottomSheetHeight, boolean isWaynameVisible) {
+    int padding = mapViewHeight - ((bottomSheetHeight * PADDING_MULTIPLIER));
+    if (isWaynameVisible) {
+      return (int) (padding - ViewUtils.dpToPx(context, TWELVE_DP));
+    }
+    return padding;
   }
 
   public static float dpToPx(Context context, int dp) {

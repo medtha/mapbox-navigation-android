@@ -326,6 +326,14 @@ public class InstructionView extends RelativeLayout implements FeedbackBottomShe
     rvInstructions.smoothScrollToPosition(TOP);
   }
 
+  public boolean handleBackPressed() {
+    if (isShowingInstructionList()) {
+      hideInstructionList();
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Sets the locale to use for languages and default unit type
    *
