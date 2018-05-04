@@ -1,5 +1,6 @@
 package com.mapbox.services.android.navigation.ui.v5;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
 import android.arch.lifecycle.LifecycleObserver;
@@ -186,6 +187,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
   }
 
   public void onStart() {
+    locationLayerOnStart();
     mapView.onStart();
   }
 
@@ -198,6 +200,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
   }
 
   public void onStop() {
+    locationLayerOnStop();
     mapView.onStop();
   }
 
@@ -219,7 +222,6 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
         initRoute();
         initLocationLayer();
         initMapPadding();
-        initLocationLayerObserver();
         initNavigationPresenter();
         initClickListeners();
         map.addOnScrollListener(NavigationView.this);
@@ -498,7 +500,6 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    * Initializes the {@link LocationLayerPlugin} to be used to draw the current
    * location.
    */
-  @SuppressWarnings( {"MissingPermission"})
   private void initLocationLayer() {
     int locationLayerStyleRes = ThemeSwitcher.retrieveNavigationViewStyle(getContext(),
       R.attr.navigationViewLocationLayerStyle);
@@ -506,11 +507,16 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     locationLayer.setRenderMode(RenderMode.GPS);
   }
 
-  private void initLocationLayerObserver() {
-    try {
-      ((LifecycleOwner) getContext()).getLifecycle().addObserver(locationLayer);
-    } catch (ClassCastException exception) {
-      throw new ClassCastException("Please ensure that the provided Context is a valid LifecycleOwner");
+  @SuppressLint("MissingPermission")
+  private void locationLayerOnStart() {
+    if (locationLayer != null) {
+      locationLayer.onStart();
+    }
+  }
+
+  private void locationLayerOnStop() {
+    if (locationLayer != null) {
+      locationLayer.onStop();
     }
   }
 
