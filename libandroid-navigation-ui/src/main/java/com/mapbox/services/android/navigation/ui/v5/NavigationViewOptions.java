@@ -15,7 +15,7 @@ import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigationOpti
 import com.mapbox.services.android.navigation.v5.routeprogress.ProgressChangeListener;
 
 @AutoValue
-public abstract class NavigationViewOptions extends NavigationOptions {
+public abstract class NavigationViewOptions extends NavigationUiOptions {
 
   public abstract MapboxNavigationOptions navigationOptions();
 
