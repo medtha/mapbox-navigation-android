@@ -5,7 +5,6 @@ import android.support.annotation.Nullable;
 
 import com.mapbox.api.directions.v5.models.BannerText;
 import com.mapbox.api.directions.v5.models.LegStep;
-import com.mapbox.services.android.navigation.v5.navigation.NavigationUnitType;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteLegProgress;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 
@@ -21,14 +20,13 @@ public class InstructionModel {
   private Float roundaboutAngle = null;
   private InstructionStepResources stepResources;
   private RouteProgress progress;
-  private Locale locale;
-  @NavigationUnitType.UnitType
-  private int unitType;
+  private String language;
+  private String unitType;
 
   public InstructionModel(Context context, RouteProgress progress,
-                          Locale locale, @NavigationUnitType.UnitType int unitType) {
+                          String language, String unitType) {
     this.progress = progress;
-    this.locale = locale;
+    this.language = language;
     this.unitType = unitType;
     buildInstructionModel(context, progress);
   }
@@ -59,7 +57,7 @@ public class InstructionModel {
   }
 
   private void buildInstructionModel(Context context, RouteProgress progress) {
-    stepResources = new InstructionStepResources(context, progress, locale, unitType);
+    stepResources = new InstructionStepResources(context, progress, language, unitType);
     extractStepInstructions(progress);
   }
 

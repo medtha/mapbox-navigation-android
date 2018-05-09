@@ -9,6 +9,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.text.TextUtils;
 
+import com.mapbox.api.directions.v5.DirectionsCriteria;
 import com.mapbox.api.directions.v5.models.DirectionsRoute;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
@@ -30,15 +31,12 @@ import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigation;
 import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigationOptions;
 import com.mapbox.services.android.navigation.v5.navigation.NavigationEventListener;
 import com.mapbox.services.android.navigation.v5.navigation.NavigationTimeFormat;
-import com.mapbox.services.android.navigation.v5.navigation.NavigationUnitType;
 import com.mapbox.services.android.navigation.v5.navigation.metrics.FeedbackEvent;
 import com.mapbox.services.android.navigation.v5.offroute.OffRouteListener;
 import com.mapbox.services.android.navigation.v5.route.FasterRouteListener;
 import com.mapbox.services.android.navigation.v5.routeprogress.ProgressChangeListener;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 import com.mapbox.services.android.navigation.v5.utils.LocaleUtils;
-
-import java.util.Locale;
 
 public class NavigationViewModel extends AndroidViewModel {
 
@@ -63,9 +61,9 @@ public class NavigationViewModel extends AndroidViewModel {
   private RouteProgress routeProgress;
   private String feedbackId;
   private String screenshot;
-  private Locale locale;
-  @NavigationUnitType.UnitType
-  private int unitType;
+  private String locale;
+  @DirectionsCriteria.VoiceUnitCriteria
+  private String unitType;
   @NavigationTimeFormat.Type
   private int timeFormatType;
   private boolean resumeState;
@@ -159,7 +157,7 @@ public class NavigationViewModel extends AndroidViewModel {
     this.navigationViewEventDispatcher = dispatcher;
     MapboxNavigationOptions navigationOptions = options.navigationOptions();
     navigationOptions = navigationOptions.toBuilder().isFromNavigationUi(true).build();
-    initLocaleInfo(navigationOptions);
+    initLocaleInfo(options);
     initTimeFormat(navigationOptions);
     initVoiceInstructions();
     if (!resumeState) {
@@ -193,9 +191,9 @@ public class NavigationViewModel extends AndroidViewModel {
     locationEngineConductor = new LocationEngineConductor(locationEngineCallback);
   }
 
-  private void initLocaleInfo(MapboxNavigationOptions options) {
-    locale = LocaleUtils.getNonNullLocale(getApplication(), options.locale());
-    unitType = options.unitType();
+  private void initLocaleInfo(NavigationUiOptions options) {
+    locale = LocaleUtils.getNonNullLocale(getApplication(), options.directionsRoute().voiceLanguage());
+    unitType = options.directionsRoute().routeOptions().voiceUnits();
   }
 
   private void initVoiceInstructions() {

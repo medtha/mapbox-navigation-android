@@ -4,7 +4,6 @@ import android.content.Context;
 
 import com.mapbox.api.directions.v5.models.BannerText;
 import com.mapbox.services.android.navigation.v5.milestone.BannerInstructionMilestone;
-import com.mapbox.services.android.navigation.v5.navigation.NavigationUnitType;
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress;
 
 import java.util.Locale;
