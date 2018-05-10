@@ -111,8 +111,8 @@ public class WaypointNavigationActivity extends AppCompatActivity implements OnN
     NavigationViewOptions.Builder options = NavigationViewOptions.builder();
     options.navigationListener(this);
     options.progressChangeListener(this);
-    options.origin(origin);
-    options.destination(points.remove(0));
+//    options.origin(origin);
+//    options.destination(points.remove(0));
     options.shouldSimulateRoute(true);
     return options.build();
   }
