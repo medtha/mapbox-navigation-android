@@ -216,10 +216,6 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
     ThemeSwitcher.setMapStyle(getContext(), map, new MapboxMap.OnStyleLoadedListener() {
       @Override
       public void onStyleLoaded(String style) {
-        initRoute();
-        initLocationLayer();
-        initMapPadding();
-        initLocationLayerObserver();
         initNavigationPresenter();
         initClickListeners();
         map.addOnScrollListener(NavigationView.this);
@@ -375,6 +371,10 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
       navigationViewModel.initializeNavigation(options, navigationViewEventDispatcher);
       initNavigationListeners(options, navigationViewModel.getNavigation());
       initNavigationCamera();
+      initRoute();
+      initLocationLayer();
+      initLocationLayerObserver();
+      initMapPadding();
       subscribeViewModels();
       isInitialized = true;
     } else {
@@ -491,7 +491,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleObserv
    */
   private void initRoute() {
     int routeStyleRes = ThemeSwitcher.retrieveNavigationViewStyle(getContext(), R.attr.navigationViewRouteStyle);
-    mapRoute = new NavigationMapRoute(null, mapView, map, routeStyleRes);
+    mapRoute = new NavigationMapRoute(navigationViewModel.getNavigation(), mapView, map, routeStyleRes);
   }
 
   /**
